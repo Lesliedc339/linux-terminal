@@ -1,0 +1,98 @@
+[
+  {
+    "input": "pwd",
+    "out": "/home/user"
+  },
+  {
+    "input": "ls",
+    "out": "Documents  Downloads  Music  Pictures  Videos"
+  },
+  {
+    "input": "ls -l",
+    "out": "total 20\ndrwxr-xr-x 2 user user 4096 Jan 10 10:00 Documents\ndrwxr-xr-x 2 user user 4096 Jan 10 10:00 Downloads\ndrwxr-xr-x 2 user user 4096 Jan 10 10:00 Music\ndrwxr-xr-x 2 user user 4096 Jan 10 10:00 Pictures\ndrwxr-xr-x 2 user user 4096 Jan 10 10:00 Videos"
+  },
+  {
+    "input": "cat hello.txt",
+    "out": "Hello, World!\nThis is a sample text file."
+  },
+  {
+    "input": "grep \"sample\" hello.txt",
+    "out": "This is a sample text file."
+  },
+  {
+    "input": "wc -l hello.txt",
+    "out": "2 hello.txt"
+  },
+  {
+    "input": "uname -a",
+    "out": "Linux hostname 5.4.0-90-generic #101-Ubuntu SMP Fri Oct 15 20:00:55 UTC 2021 x86_64 x86_64 x86_64 GNU/Linux"
+  },
+  {
+    "input": "df -h",
+    "out": "Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda1        50G   15G   33G  32% /\ntmpfs           3.9G     0  3.9G   0% /tmp"
+  },
+  {
+    "input": "free -m",
+    "out": "              total        used        free      shared  buff/cache   available\nMem:           7982        1024        4096         123        2861        6521\nSwap:          2048           0        2048"
+  },
+  {
+    "input": "ps aux | grep nginx",
+    "out": "root      1234  0.0  0.1  12345  6789 ?        S    Jan10   0:00 nginx: master process\nwww-data  5678  0.0  0.0  12345  4321 ?        S    Jan10   0:00 nginx: worker process"
+  },
+  {
+    "input": "top -n 1",
+    "out": "top - 10:00:01 up 1 day,  2:30,  1 user,  load average: 0.15, 0.10, 0.05\nTasks: 120 total,   1 running, 119 sleeping,   0 stopped,   0 zombie\n%Cpu(s):  2.3 us,  1.0 sy,  0.0 ni, 96.7 id,  0.0 wa,  0.0 hi,  0.0 si,  0.0 st\nMiB Mem :   7982.0 total,   4096.0 free,   1024.0 used,   2861.0 buff/cache"
+  },
+  {
+    "input": "ifconfig",
+    "out": "eth0: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500\n        inet 192.168.1.100  netmask 255.255.255.0  broadcast 192.168.1.255\n        inet6 fe80::a00:27ff:fe1a:2b3c  prefixlen 64  scopeid 0x20<link>\n        ether 08:00:27:1a:2b:3c  txqueuelen 1000  (Ethernet)"
+  },
+  {
+    "input": "ping -c 3 google.com",
+    "out": "PING google.com (142.250.190.46) 56(84) bytes of data.\n64 bytes from 142.250.190.46: icmp_seq=1 ttl=117 time=12.3 ms\n64 bytes from 142.250.190.46: icmp_seq=2 ttl=117 time=11.8 ms\n64 bytes from 142.250.190.46: icmp_seq=3 ttl=117 time=13.2 ms\n\n--- google.com ping statistics ---\n3 packets transmitted, 3 received, 0% packet loss, time 2003ms\nrtt min/avg/max/mdev = 11.8/12.4/13.2/0.6 ms"
+  },
+  {
+    "input": "chmod 755 script.sh",
+    "out": ""
+  },
+  {
+    "input": "ls -l script.sh",
+    "out": "-rwxr-xr-x 1 user user 120 Jan 10 10:00 script.sh"
+  },
+  {
+    "input": "sudo systemctl restart apache2",
+    "out": "[sudo] password for user: "
+  },
+  {
+    "input": "apt update",
+    "out": "Get:1 http://archive.ubuntu.com/ubuntu focal InRelease [265 kB]\nGet:2 http://archive.ubuntu.com/ubuntu focal-updates InRelease [114 kB]\nFetched 379 kB in 2s (189 kB/s)\nReading package lists... Done"
+  },
+  {
+    "input": "apt install nginx",
+    "out": "Reading package lists... Done\nBuilding dependency tree... Done\nThe following additional packages will be installed:\n  nginx-common nginx-core\nProceed with installation? [Y/n] Y"
+  },
+  {
+    "input": "whoami",
+    "out": "user"
+  },
+  {
+    "input": "id",
+    "out": "uid=1000(user) gid=1000(user) groups=1000(user),4(adm),24(cdrom),27(sudo)"
+  },
+  {
+    "input": "adduser newuser",
+    "out": "Adding user `newuser' ...\nAdding new group `newuser' (1001) ...\nAdding new user `newuser' (1001) with group `newuser' ...\nCreating home directory `/home/newuser' ...\nCopying files from `/etc/skel' ...\nNew password: \nRetype new password: \npasswd: password updated successfully"
+  },
+  {
+    "input": "tar -czvf archive.tar.gz Documents",
+    "out": "Documents/\nDocuments/file1.txt\nDocuments/file2.txt"
+  },
+  {
+    "input": "unzip archive.zip",
+    "out": "Archive:  archive.zip\n  inflating: file1.txt              \n  inflating: file2.txt"
+  },
+  {
+    "input": "ssh user@192.168.1.100",
+    "out": "user@192.168.1.100's password: \nWelcome to Ubuntu 20.04 LTS (GNU/Linux 5.4.0-90-generic x86_64)\nLast login: Mon Jan 10 09:00:01 2022 from 192.168.1.50\nuser@remotehost:~$ "
+  }
+]

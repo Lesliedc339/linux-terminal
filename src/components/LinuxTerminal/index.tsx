@@ -1,29 +1,32 @@
-import React, { useEffect, useRef } from 'react';
+import React, {
+    useEffect,
+    useRef,
+    useImperativeHandle,
+    forwardRef
+} from 'react';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import 'xterm/css/xterm.css';
+import data from '@/assets/data.json';
 
-// 命令处理器类型
+// 类型 
 type CommandHandler = (
     args: string[],
     context: CommandContext
 ) => string | string[] | Promise<string | string[]>;
 
-// 命令上下文
 interface CommandContext {
     currentDir: string;
     history: string[];
     output: (content: string) => void;
 }
 
-// 命令配置
 interface CommandConfig {
     description: string;
     handler: CommandHandler;
     validate?: (args: string[]) => boolean;
 }
 
-// 组件 props
 interface LinuxTerminalProps {
     commands?: Record<string, CommandConfig>;
     onExecute?: (command: string, output: string) => void;
@@ -31,208 +34,213 @@ interface LinuxTerminalProps {
     welcomeMessage?: string;
 }
 
-const LinuxTerminal: React.FC<LinuxTerminalProps> = ({
-    commands = {},
-    onExecute,
-    prompt = '$ ',
-    welcomeMessage = 'Welcome to fake-linux terminal on Windows 11!'
-}) => {
-    const terminalRef = useRef<HTMLDivElement>(null);
+export interface LinuxTerminalHandle {
+    pushCommand: (cmd: string) => void;
+}
+// -------------------------
 
-    // 使用 useRef 保存命令表，避免重复合并
-    const commandRegistry = useRef<Record<string, CommandConfig>>({});
+const LinuxTerminal = forwardRef<LinuxTerminalHandle, LinuxTerminalProps>(
+    ({ commands = {}, prompt = '$ ', welcomeMessage = 'Welcome!' }, ref) => {
+        const terminalRef = useRef<HTMLDivElement>(null);
+        const termRef = useRef<Terminal>();
+        const fitAddonRef = useRef<FitAddon>();
+        const commandRegistry = useRef<Record<string, CommandConfig>>({});
+        const executeCommandRef = useRef<(input: string) => Promise<void>>();
+        const showPromptRef = useRef<() => void>();
 
-    useEffect(() => {
-        // 初始化内置命令
-        commandRegistry.current = {
-            help: {
-                description: '显示所有可用命令',
-                handler(): string[] {
-                    const list = Object.keys(commandRegistry.current).map(
-                        cmd => `${cmd.padEnd(8)} - ${commandRegistry.current[cmd].description}`
-                    );
-                    return ['可用命令:', ...list];
-                }
-            },
-            clear: {
-                description: '清除终端内容',
-                handler(_, { output }) {
-                    output('\x1Bc');
-                    return '';
-                }
-            },
-            date: {
-                description: '显示当前日期时间',
-                handler: () => new Date().toLocaleString(),
-            },
-            roll: {
-                description: '掷骰子 1-6',
-                handler: () => `🎲 ${Math.floor(Math.random() * 6) + 1}`,
-            },
-            countdown: {
-                description: '倒计时 5 秒',
-                async handler(_, { output }) {
-                    for (let i = 5; i >= 0; i--) {
-                        output(String(i || 'BOOM!'));   // ← 这里加 String()
-                        await new Promise(r => setTimeout(r, 1000));
-                    }
-                    return '';
-                }
-            },
-            rainbow: {
-                description: '彩色 Hello',
-                handler: () => '\x1B[31mH\x1B[33me\x1B[32ml\x1B[36ml\x1B[34mo\x1B[35m!'
-            },
-            
-
-            ...commands // 合并外部传入命令
-        };
-
-        if (!terminalRef.current) return;
-
-        const term = new Terminal({
-            cursorBlink: true,
-            fontFamily: 'Consolas, "Courier New", monospace',
-            theme: { background: '#000' },
-            fontSize: 14,
-            allowProposedApi: true
-        });
-
-        const fitAddon = new FitAddon();
-        term.loadAddon(fitAddon);
-        term.open(terminalRef.current);
-        fitAddon.fit();
-
-        term.writeln(welcomeMessage);
-
-        const showPrompt = () => term.write(`\r\n${prompt}`);
-        showPrompt();
-
-        let currentCommand = '';
-        const history: string[] = [];
-        let historyIndex = -1;
-
-        const executeCommand = async (input: string) => {
-            const trimmed = input.trim();
-            if (!trimmed) {
-                showPrompt();
-                return;
+        // 暴露给父组件的方法
+        useImperativeHandle(ref, () => ({
+            pushCommand: (cmd: string) => {
+                if (!termRef.current) return;
+                termRef.current.writeln(`\r\n${prompt}${cmd}`);
+                executeCommandRef.current?.(cmd);
             }
+        }));
 
-            history.unshift(trimmed);
-            historyIndex = -1;
+        useEffect(() => {
+            if (!terminalRef.current) return;
 
-            const [cmd, ...args] = trimmed.split(/\s+/);
-            const config = commandRegistry.current[cmd];
+            const term = new Terminal({
+                cursorBlink: true,
+                fontFamily: 'Consolas, "Courier New", monospace',
+                theme: { background: '#000' },
+                fontSize: 14,
+                allowProposedApi: true
+            });
 
-            try {
-                if (!config) {
-                    term.writeln(`\x1B[31mCommand not found: ${cmd}\x1B[0m`);
+            const fitAddon = new FitAddon();
+            term.loadAddon(fitAddon);
+            term.open(terminalRef.current);
+            fitAddon.fit();
+            termRef.current = term;
+            fitAddonRef.current = fitAddon;
+
+            // 内置命令
+            commandRegistry.current = {
+                help: {
+                    description: '显示所有可用命令',
+                    handler(): string[] {
+                        const list = Object.keys(commandRegistry.current).map(
+                            cmd => `${cmd.padEnd(8)} - ${commandRegistry.current[cmd].description}`
+                        );
+                        return ['可用命令:', ...list];
+                    }
+                },
+                clear: {
+                    description: '清除终端内容',
+                    handler(_, { output }) {
+                        output('\x1Bc');
+                        return '';
+                    }
+                },
+                date: { description: '显示当前日期时间', handler: () => new Date().toLocaleString() },
+                countdown: {
+                    description: '倒计时 5 秒',
+                    async handler(_, { output }) {
+                        for (let i = 5; i >= 0; i--) {
+                            output(String(i || 'BOOM!'));
+                            await new Promise(r => setTimeout(r, 1000));
+                        }
+                        return '';
+                    }
+                },
+
+                ...commands
+            };
+
+            term.writeln(welcomeMessage);
+            const showPrompt = () => term.write(`\r${prompt}`);
+            showPromptRef.current = showPrompt;
+            let currentCommand = '';
+            const history: string[] = [];
+            let historyIndex = -1;
+            async function executeCommand(input: string) {
+                const trimmed = input.trim();
+                if (!trimmed) {
+                    showPrompt();
                     return;
                 }
 
-                const context: CommandContext = {
-                    currentDir: '/',
-                    history: [...history],
-                    output: str => term.writeln(str)
-                };
+                // 先在 data.json 中匹配
+                const found = data.find(d => d.input === trimmed);
+                if (found) {
+                    found.out.split('\n').forEach(l => term.writeln(l));
+                    return;
+                }
 
-                const result = await config.handler(args, context);
-                const lines = Array.isArray(result) ? result : [result];
-                lines.forEach(l => term.writeln(l));
+                // 走自定义命令
+                const [cmd, ...args] = trimmed.split(/\s+/);
+                const config = commandRegistry.current[cmd];
 
-                onExecute?.(trimmed, lines.join('\n'));
-            } catch (err) {
-                term.writeln(`\x1B[31mError: ${(err as Error).message}\x1B[0m`);
-            } finally {
-                showPrompt();
+                try {
+                    if (!config) {
+                        term.writeln(`\x1B[31mCommand not found: ${cmd}\x1B[0m`);
+                        return;
+                    }
+
+                    const context: CommandContext = {
+                        currentDir: '/',
+                        history: [...history],
+                        output: str => term.writeln(str)
+                    };
+
+                    const result = await config.handler(args, context);
+                    const lines = Array.isArray(result) ? result : [result];
+                    lines.forEach(l => term.writeln(l));
+                } catch (err) {
+                    term.writeln(`\x1B[31mError: ${(err as Error).message}\x1B[0m`);
+                } finally {
+                    
+                }
             }
-        };
 
-        term.onKey(({ key, domEvent }) => {
-            const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
+            executeCommandRef.current = executeCommand;
 
-            switch (domEvent.key) {
-                case 'Enter':
-                    term.write('\r\n');
-                    executeCommand(currentCommand);
-                    currentCommand = '';
-                    break;
+            term.onKey(({ key, domEvent }) => {
+                const printable = !domEvent.altKey && !domEvent.ctrlKey && !domEvent.metaKey;
 
-                case 'Backspace':
-                    if (currentCommand.length > 0) {
-                        currentCommand = currentCommand.slice(0, -1);
-                        term.write('\b \b');
-                    }
-                    break;
-
-                case 'ArrowUp':
-                    if (historyIndex < history.length - 1) {
-                        historyIndex++;
-                        const prev = history[historyIndex];
-                        term.write('\x1B[2K\r');
-                        term.write(`${prompt}${prev}`);
-                        currentCommand = prev;
-                    }
-                    break;
-
-                case 'ArrowDown':
-                    if (historyIndex > 0) {
-                        historyIndex--;
-                        const next = history[historyIndex];
-                        term.write('\x1B[2K\r');
-                        term.write(`${prompt}${next}`);
-                        currentCommand = next;
-                    } else if (historyIndex === 0) {
-                        historyIndex = -1;
-                        term.write('\x1B[2K\r');
-                        term.write(prompt);
+                switch (domEvent.key) {
+                    case 'Enter':
+                        term.write('\r\n');
+                        executeCommand(currentCommand);
                         currentCommand = '';
-                    }
-                    break;
+                        break;
 
-                case 'Tab':
-                    if (currentCommand) {
-                        const matches = Object.keys(commandRegistry.current).filter(c =>
-                            c.startsWith(currentCommand)
-                        );
-                        if (matches.length === 1) {
-                            const rest = matches[0].slice(currentCommand.length);
-                            term.write(rest);
-                            currentCommand = matches[0];
+                    case 'Backspace':
+                        if (currentCommand.length > 0) {
+                            currentCommand = currentCommand.slice(0, -1);
+                            term.write('\b \b');
                         }
-                    }
-                    break;
+                        break;
 
-                default:
-                    if (printable && key.length === 1) {
-                        currentCommand += key;
-                        term.write(key);
-                    }
-            }
-        });
+                    case 'ArrowUp':
+                        if (historyIndex < history.length - 1) {
+                            historyIndex++;
+                            const prev = history[historyIndex];
+                            term.write('\x1B[2K\r');
+                            term.write(`${prompt}${prev}`);
+                            currentCommand = prev;
+                        }
+                        break;
 
-        const resizeHandler = () => fitAddon.fit();
-        window.addEventListener('resize', resizeHandler);
+                    case 'ArrowDown':
+                        if (historyIndex > 0) {
+                            historyIndex--;
+                            const next = history[historyIndex];
+                            term.write('\x1B[2K\r');
+                            term.write(`${prompt}${next}`);
+                            currentCommand = next;
+                        } else if (historyIndex === 0) {
+                            historyIndex = -1;
+                            term.write('\x1B[2K\r');
+                            term.write(prompt);
+                            currentCommand = '';
+                        }
+                        break;
 
-        return () => {
-            term.dispose();
-            window.removeEventListener('resize', resizeHandler);
-        };
-    }, [commands, onExecute, prompt, welcomeMessage]);
+                    case 'Tab':
+                        if (currentCommand) {
+                            const matches = Object.keys(commandRegistry.current).filter(c =>
+                                c.startsWith(currentCommand)
+                            );
+                            if (matches.length === 1) {
+                                const rest = matches[0].slice(currentCommand.length);
+                                term.write(rest);
+                                currentCommand = matches[0];
+                            }
+                        }
+                        break;
 
-    return (
-        <div
-            ref={terminalRef}
-            style={{
-                width: '100%',
-                height: '100%',
-                background: '#000',
-                padding: '10px',
-                boxSizing: 'border-box'
-            }}
-        />
-    );
-};
+                    default:
+                        if (printable && key.length === 1) {
+                            currentCommand += key;
+                            term.write(key);
+                        }
+                }
+            });
+
+            const resizeHandler = () => fitAddonRef.current?.fit();
+            window.addEventListener('resize', resizeHandler);
+
+            return () => {
+                term.dispose();
+                window.removeEventListener('resize', resizeHandler);
+            };
+        }, [commands, prompt, welcomeMessage]);
+
+        return (
+            <div
+                ref={terminalRef}
+                style={{
+                    width: '100%',
+                    height: '100%',
+                    background: '#000',
+                    padding: '10px',
+                    boxSizing: 'border-box'
+                }}
+            />
+        );
+    }
+);
 
 export default LinuxTerminal;
